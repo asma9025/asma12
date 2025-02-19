@@ -1,0 +1,207 @@
+package com.educationplatform;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class OnlineEducationPlatformApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(OnlineEducationPlatformApplication.class, args);
+    }
+}
+
+// Quiz Model
+package com.educationplatform.model;
+
+import lombok.*;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class Quiz {
+    private Long quizId;
+    private Long courseId;
+    private String title;
+    private int totalMarks;
+    private String createdAt;
+}
+
+// Question Model
+package com.educationplatform.model;
+
+import lombok.*;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class Question {
+    private Long questionId;
+    private Long quizId;
+    private String question;
+    private String optionA;
+    private String optionB;
+    private String optionC;
+    private String correctAnswer;
+}
+
+// QuizSubmission Model
+package com.educationplatform.model;
+
+import lombok.*;
+import java.util.Map;
+
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class QuizSubmission {
+    private Long submissionId;
+    private Long userId;
+    private Long quizId;
+    private int obtainedMarks;
+    private String submittedAt;
+    private Map<Long, String> answers; // Maps questionId to selected answer
+}
+
+// Quiz Service Interface
+package com.educationplatform.service;
+
+import com.educationplatform.model.Quiz;
+import com.educationplatform.model.QuizSubmission;
+import java.util.List;
+
+public interface QuizService {
+    List<Quiz> getAllQuizzes();
+    Quiz getQuizById(Long quizId);
+    Quiz createQuiz(Quiz quiz);
+}
+
+public interface QuizSubmissionService {
+    QuizSubmission submitQuiz(QuizSubmission submission);
+    List<QuizSubmission> getSubmissionsByUser(Long userId);
+    int calculateMarks(QuizSubmission submission);
+}
+
+// Quiz Service Implementation
+package com.educationplatform.service.impl;
+
+import com.educationplatform.model.Quiz;
+import com.educationplatform.model.QuizSubmission;
+import com.educationplatform.model.Question;
+import com.educationplatform.service.QuizService;
+import com.educationplatform.service.QuizSubmissionService;
+import org.springframework.stereotype.Service;
+import java.util.*;
+
+@Service
+public class QuizServiceImpl implements QuizService {
+    private List<Quiz> quizList = new ArrayList<>();
+    public QuizServiceImpl() {
+        quizList.add(new Quiz(1L, 101L, "Java Basics Quiz", 50, "2024-02-19"));
+        quizList.add(new Quiz(2L, 102L, "Spring Boot Quiz", 75, "2024-02-19"));
+    }
+    @Override
+    public List<Quiz> getAllQuizzes() {
+        return quizList;
+    }
+    @Override
+    public Quiz getQuizById(Long quizId) {
+        return quizList.stream()
+                .filter(q -> q.getQuizId().equals(quizId))
+                .findFirst()
+                .orElse(null);
+    }
+    @Override
+    public Quiz createQuiz(Quiz quiz) {
+        quiz.setQuizId((long) (quizList.size() + 1));
+        quizList.add(quiz);
+        return quiz;
+    }
+}
+
+@Service
+public class QuizSubmissionServiceImpl implements QuizSubmissionService {
+    private List<QuizSubmission> submissions = new ArrayList<>();
+    private List<Question> questionBank = new ArrayList<>();
+    
+    public QuizSubmissionServiceImpl() {
+        questionBank.add(new Question(1L, 1L, "What is Java?", "Programming Language", "Game", "Food", "Programming Language"));
+        questionBank.add(new Question(2L, 1L, "Spring Boot is based on?", "Django", "Spring Framework", "Flask", "Spring Framework"));
+    }
+    
+    @Override
+    public QuizSubmission submitQuiz(QuizSubmission submission) {
+        submission.setSubmissionId((long) (submissions.size() + 1));
+        submission.setObtainedMarks(calculateMarks(submission));
+        submissions.add(submission);
+        return submission;
+    }
+    
+    @Override
+    public List<QuizSubmission> getSubmissionsByUser(Long userId) {
+        List<QuizSubmission> userSubmissions = new ArrayList<>();
+        for (QuizSubmission sub : submissions) {
+            if (sub.getUserId().equals(userId)) {
+                userSubmissions.add(sub);
+            }
+        }
+        return userSubmissions;
+    }
+    
+    @Override
+    public int calculateMarks(QuizSubmission submission) {
+        int score = 0;
+        for (Map.Entry<Long, String> entry : submission.getAnswers().entrySet()) {
+            Long questionId = entry.getKey();
+            String selectedAnswer = entry.getValue();
+            for (Question question : questionBank) {
+                if (question.getQuestionId().equals(questionId) && question.getCorrectAnswer().equals(selectedAnswer)) {
+                    score += 10; // Assuming each question carries 10 marks
+                }
+            }
+        }
+        return score;
+    }
+}
+
+// Quiz Controller
+package com.educationplatform.controller;
+
+import com.educationplatform.model.Quiz;
+import com.educationplatform.service.QuizService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/quizzes")
+public class QuizController {
+    @Autowired
+    private QuizService quizService;
+    @PostMapping("/create")
+    public Quiz createQuiz(@RequestBody Quiz quiz) {
+        return quizService.createQuiz(quiz);
+    }
+}
+
+// Quiz Submission Controller
+package com.educationplatform.controller;
+
+import com.educationplatform.model.QuizSubmission;
+import com.educationplatform.service.QuizSubmissionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/submissions")
+public class QuizSubmissionController {
+    @Autowired
+    private QuizSubmissionService submissionService;
+    @PostMapping("/submit")
+    public QuizSubmission submitQuiz(@RequestBody QuizSubmission submission) {
+        return submissionService.submitQuiz(submission);
+    }
+}
