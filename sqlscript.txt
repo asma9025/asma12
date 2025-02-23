@@ -1,0 +1,10 @@
+create database assignment_module
+use assignment_module
+create table assignment_questions(assignquestionId int
+primary key ,assignment_id int not null,question text not null);
+
+show tables;
+create table assignment_submission(submission_id int primary key,user_id bigint not null,assignment_id int not null,answer_upload longblob null,
+obtained_marks int null,submitted_at date not null);
+
+select *from assignment_questions;
